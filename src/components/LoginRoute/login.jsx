@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 import axios from "axios";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -86,24 +85,25 @@ export const Login = ({ setAuthenticated }) => {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    await axios.post(`${process.env.REACT_APP_STRAPI_URL_DEPLOYED}/api/auth/local`, {
+    await axios
+      .post(`${import.meta.env.VITE_STRAPI_URL_DEPLOYED}/api/auth/local`, {
         identifier: username,
         password: password,
       })
       .then((response) => {
-        console.log('Login response : ', response.data);
+        console.log("Login response : ", response.data);
         const newAuth = {
           token: response.data.jwt,
           user: {
             username,
-            userId: response.data.user.id,
+            userId: response.data.user.documentId,
           },
         };
 
         const newUser = { id: Date.now().toString(), data: newAuth };
         storage.setUser(newUser);
 
-        const socket = io(process.env.REACT_APP_STRAPI_URL_DEPLOYED); //you only requried server adress before build not after that
+        const socket = io(import.meta.env.VITE_STRAPI_URL_DEPLOYED); //you only requried server adress before build not after that
 
         GlobalSocketSet({ socket });
         setAuthenticated(true);
@@ -145,5 +145,5 @@ export const Login = ({ setAuthenticated }) => {
 };
 
 Login.propTypes = {
-    setAuthenticated: PropTypes.func,
-}
+  setAuthenticated: PropTypes.func,
+};

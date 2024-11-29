@@ -12,16 +12,16 @@ export const storage = {
     localStorage.removeItem('user');
   },
 
-  getSessions: () => {
-    const sessions = localStorage.getItem('sessions');
-    return sessions ? JSON.parse(sessions) : [];
-  },
+//   getSessions: () => {
+//     const sessions = localStorage.getItem('sessions');
+//     return sessions ? JSON.parse(sessions) : [];
+//   },
 
-  setSessions: (sessions) => {
-    localStorage.setItem('sessions', JSON.stringify(sessions));
-  },
+//   setSessions: (sessions) => {
+//     localStorage.setItem('sessions', JSON.stringify(sessions));
+//   },
 
-  removeSessions: () => {
-    localStorage.removeItem('sessions');
-  },
+//   removeSessions: () => {
+//     localStorage.removeItem('sessions');
+//   },
 };

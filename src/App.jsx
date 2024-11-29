@@ -13,7 +13,7 @@ function App() {
     let socket;
     const user = storage.getUser();
     if(user && user?.data?.token && user.data.token.length > 0){
-      socket = io(process.env.REACT_APP_STRAPI_URL_DEPLOYED);
+      socket = io(import.meta.env.VITE_STRAPI_URL_DEPLOYED);
       GlobalSocketSet({ socket });
       setAuthenticated(true);
     }

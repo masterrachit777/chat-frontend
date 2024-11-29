@@ -85,9 +85,9 @@ export const Signup = ({ setAuthenticated }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    alert("Signup button clicked");
+    // alert("Signup button clicked");
 
-    await axios.post(`${process.env.REACT_APP_STRAPI_URL_DEPLOYED}/api/auth/local/register`, {
+    await axios.post(`${import.meta.env.VITE_STRAPI_URL_DEPLOYED}/api/auth/local/register`, {
         username: username,
         email: email,
         password: password,
@@ -97,14 +97,14 @@ export const Signup = ({ setAuthenticated }) => {
           token: response.data.jwt,
           user: {
             username,
-            userId: response.data.user.id,
+            userId: response.data.user.documentId,
           },
         };
 
         const newUser = { id: Date.now().toString(), data: newAuth };
         storage.setUser(newUser);
 
-        const socket = io(process.env.REACT_APP_STRAPI_URL_DEPLOYED); //you only requried server adress before build not after that
+        const socket = io(import.meta.env.VITE_STRAPI_URL_DEPLOYED); //you only requried server adress before build not after that
 
         GlobalSocketSet({ socket });
         setAuthenticated(true);
@@ -119,7 +119,7 @@ export const Signup = ({ setAuthenticated }) => {
   return (
     <SignupContainer>
       <SignupBox>
-        <Title>Welcome Back</Title>
+        <Title>Get started</Title>
         <form onSubmit={handleSubmit}>
           <InputField
             type="text"

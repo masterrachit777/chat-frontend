@@ -6,36 +6,33 @@ import axios from "axios";
 
 const ChatboxContainer = styled.div`
   display: flex;
-  justify-content: center;
-  align-items: center;
   height: 100vh;
-  background: linear-gradient(135deg, #6a11cb, #2575fc);
   font-family: "Arial", sans-serif;
+  @media (max-width: 480px) {
+    overflow: auto;
+  }
 `;
 
 const ChatboxWrapper = styled.div`
-  width: 40%;
-  height: 85vh;
+  width: 80%;
+  height: 100%;
   background: #fff;
-  border-radius: 10px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  font-family: 'Arial', sans-serif;
+  font-family: "Arial", sans-serif;
 
   @media (max-width: 1024px) {
-    width: 60%; /* Adjust width for tablets */
-    height: 85vh; /* Adjust height for tablets */
+    width: 70%; /* Adjust width for tablets */
   }
 
   @media (max-width: 768px) {
-    width: 80%; /* Adjust width for small tablets or large phones */
-    height: 85vh; 
+    width: 60%; /* Adjust width for small tablets or large phones */
   }
 
   @media (max-width: 480px) {
-    width: 95%; /* Almost full width for mobile devices */
-    height: 85vh; 
+    min-width: min-content;
+    width: 55%; /* Almost full width for mobile devices */
   }
 `;
 
@@ -48,7 +45,6 @@ const ChatHeader = styled.div`
   color: #fff;
   font-size: 18px;
   font-weight: bold;
-  border-radius: 10px 10px 0 0;
 
   @media (max-width: 768px) {
     font-size: 16px; /* Slightly smaller font for tablets */
@@ -109,7 +105,8 @@ const Message = styled.div`
 `;
 
 const MessageBubble = styled.div`
-  background: ${(props) => (props.isUser ? "linear-gradient(135deg, #6a11cb, #2575fc)" : "#e0e0e0")};
+  background: ${(props) =>
+    props.isUser ? "linear-gradient(135deg, #6a11cb, #2575fc)" : "#e0e0e0"};
   color: ${(props) => (props.isUser ? "#fff" : "#333")};
   padding: 10px 15px;
   border-radius: ${(props) =>
@@ -193,110 +190,289 @@ const SendButton = styled.button`
   }
 `;
 
+const SessionSidebar = styled.div`
+  width: 20%;
+  background: #f3f3f3;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  background: lightgrey;
+
+  @media (max-width: 1024px) {
+    width: 30%; /* Adjust width for tablets */
+  }
+
+  @media (max-width: 768px) {
+    width: 40%; /* Adjust width for small tablets or large phones */
+  }
+
+  @media (max-width: 480px) {
+    min-width: max-content;
+    width: 45%; /* Almost full width for mobile devices */
+  }
+`;
+
+const SessionItem = styled.div`
+  padding: 10px;
+  background: ${(props) => (props.active === true ? "#6a11cb" : "#fff")};
+  color: ${(props) => (props.active === true ? "#fff" : "#333")};
+  margin-bottom: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+
+  &:hover {
+    background: ${(props) => (props.active ? "#5a0eb8" : "#eee")};
+  }
+`;
+
+const CreateSessionButton = styled.button`
+  margin-top: auto; /* Push button to the bottom of the sidebar */
+  background: linear-gradient(135deg, #6a11cb, #2575fc);
+  color: #fff;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:hover {
+    background: linear-gradient(135deg, #2575fc, #6a11cb);
+  }
+
+  @media (max-width: 768px) {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+`;
+
 export const Chatbox = () => {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const [user, setUser] = useState("");
   const [token, setToken] = useState("");
+  const [sessions, setSessions] = useState([]);
+  const [activeSession, setActiveSession] = useState(null); // ID of the current session
 
   // Using Websocket and sessions
   useEffect(() => {
     // set username and token from localstorage
     const userInfo = storage.getUser();
-    setUser(userInfo?.data?.user?.username);
+    setUser(userInfo?.data?.user);
     setToken(userInfo?.data?.token);
 
     // Load chat history from Localstorage
-    const savedMessages = storage.getSessions();
-    setMessages(savedMessages);
+    if (activeSession) {
+      fetchMessages(activeSession);
+    }
 
     // Listen for server replies
     SOCKET.socket.on("receive_message", (data) => {
-      const newMessage = { text: data, isUser: false };
-
-      setMessages((prevMessages) => {
-        const updatedMessages = [...prevMessages, newMessage];
-        console.log("updated messages : ", updatedMessages);
-        storage.setSessions(updatedMessages); // Save to localStorage
-        return updatedMessages;
-      });
+      createMessage(data, "server");
     });
 
     // Cleanup the listener when the component unmounts or re-renders
     return () => {
       SOCKET.socket.off("receive_message");
     };
-  }, []);
+  }, [activeSession]);
 
   const handleSend = async () => {
     if (message.trim()) {
-      const userMessage = { text: message, isUser: true };
-
-      // Add user's message to chat and save to localStorage
-      setMessages((prevMessages) => {
-        const updatedMessages = [...prevMessages, userMessage];
-        storage.setSessions(updatedMessages); // Save to localStorage
-        return updatedMessages;
-      });
-
-      await axios
-        .post(
-          `${process.env.REACT_APP_STRAPI_URL_DEPLOYED}/api/messages`,
-          {
-            data: { user: user, message: message },
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        ) //Storing the messages in Strapi
-        .then((res) => {
-          console.log("stored message in Strapi : ", res.data);
-        })
-        .catch((e) => console.log("error storing data in strapi", e.message));
-
+      createMessage(message, user.username);
       // Send message to the server
       SOCKET.socket.emit("send_message", message);
-
       // Clear input field
       setMessage("");
     }
   };
 
+  const createMessage = async (message, userType) => {
+    await axios
+      .post(
+        `${import.meta.env.VITE_STRAPI_URL_DEPLOYED}/api/messages`,
+        {
+          data: {
+            user: userType,
+            message: message,
+            session: activeSession,
+          },
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      ) //Storing the messages in Strapi
+      .then((res) => {
+        console.log("stored message in Strapi : ", res.data);
+        setMessages((prevMessages) => [...prevMessages, res.data.data]);
+      })
+      .catch((e) =>
+        console.log(
+          "error storing data in strapi",
+          e?.response?.data?.error?.message
+        )
+      );
+  };
+
   const handleLogout = () => {
     storage.removeUser();
-    storage.removeSessions();
     SOCKET.socket.disconnect();
     GlobalSocketSet({ socket: null });
     window.location.href = "/";
   };
 
+  // Fetch user sessions on mount
+  const fetchSessions = async () => {
+    await axios
+      .get(
+        `${
+          import.meta.env.VITE_STRAPI_URL_DEPLOYED
+        }/api/sessions?populate=*&filters[user][documentId]=${user.userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      ) //Storing the messages in Strapi
+      .then(async (res) => {
+        console.log("sessions for current user", res.data);
+        if (res.data.data.length === 0) {
+          // Create a default session if no sessions exist
+          console.log("no session exists!");
+          await handleCreateSession("Default Chat");
+        } else {
+          console.log("in here bitch");
+          let sortedSessions = res.data.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          setSessions(sortedSessions);
+          setActiveSession(sortedSessions[0].documentId);
+          fetchMessages(sortedSessions[0].documentId);
+        }
+      })
+      .catch((e) => console.log("error fetching sessions", e));
+  };
+
+  useEffect(() => {
+    if (user.userId && !activeSession) {
+      fetchSessions();
+    }
+  }, [user, token]);
+
+  const fetchMessages = async (sessionId) => {
+    await axios
+      .get(
+        `${
+          import.meta.env.VITE_STRAPI_URL_DEPLOYED
+        }/api/messages?populate=*&filters[session][documentId]=${sessionId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      .then(async (res) => {
+        console.log("messages for current session", res.data);
+        setMessages(res.data.data);
+      })
+      .catch((e) =>
+        console.log("error fetching messages for current session", e)
+      );
+  };
+
+  const handleSessionSwitch = (sessionId) => {
+    console.log("current session to be switched : ", sessionId);
+    setActiveSession(sessionId);
+    fetchMessages(sessionId);
+  };
+
+  const handleCreateSession = async (sessionName) => {
+    console.log("user-id is: ", user.userId);
+    await axios
+      .post(
+        `${import.meta.env.VITE_STRAPI_URL_DEPLOYED}/api/sessions`,
+        {
+          data: {
+            sessionName: sessionName,
+            userId: user.username,
+            user: user.userId,
+          },
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      ) //creating new session
+      .then(async (res) => {
+        console.log("created session : ", res.data);
+
+        setSessions((prevSessions) => [...prevSessions, res.data.data]);
+        setActiveSession(res.data.data.documentId);
+        setMessages([]);
+      })
+      .catch((e) => console.log("error creating session", e));
+  };
+
   return (
     <ChatboxContainer>
-       <ChatboxWrapper>
-      <ChatHeader>
-        Chat ({user})
-        <LogoutButton onClick={handleLogout}>Logout</LogoutButton>
-      </ChatHeader>
-      <ChatMessagesContainer>
-        {messages.map((msg, index) => (
-          <Message key={index} isUser={msg.isUser}>
-            <MessageBubble isUser={msg.isUser}>{msg.text}</MessageBubble>
-          </Message>
-        ))}
-      </ChatMessagesContainer>
-      <ChatInputContainer>
-        <InputField
-          type="text"
-          placeholder="Type your message..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-        />
-        <SendButton onClick={handleSend}>Send</SendButton>
-      </ChatInputContainer>
-    </ChatboxWrapper>
+      <SessionSidebar>
+        {sessions &&
+          sessions.length > 0 &&
+          sessions.map((session) => (
+            <SessionItem
+              key={session.documentId}
+              active={session.documentId === activeSession}
+              onClick={() => handleSessionSwitch(session.documentId)}
+            >
+              {session.sessionName}
+            </SessionItem>
+          ))}
+        <CreateSessionButton
+          onClick={() =>
+            handleCreateSession(`New Session ${sessions.length + 1}`)
+          }
+        >
+          + Create New Session
+        </CreateSessionButton>
+      </SessionSidebar>
+      <ChatboxWrapper>
+        <ChatHeader>
+          Chat ({user.username})
+          <LogoutButton onClick={handleLogout}>Logout</LogoutButton>
+        </ChatHeader>
+        <ChatMessagesContainer>
+          {messages &&
+            messages.length > 0 &&
+            messages.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt)).map((msg, index) => (
+              <Message
+                key={index}
+                isUser={msg.user === "server" ? false : true}
+              >
+                <MessageBubble isUser={msg.user === "server" ? false : true}>
+                  {msg.message}
+                </MessageBubble>
+              </Message>
+            ))}
+        </ChatMessagesContainer>
+        <ChatInputContainer>
+          <InputField
+            type="text"
+            placeholder="Type your message..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          />
+          <SendButton onClick={handleSend}>Send</SendButton>
+        </ChatInputContainer>
+      </ChatboxWrapper>
     </ChatboxContainer>
   );
 };
